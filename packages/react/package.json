@@ -69,7 +69,7 @@
     "@types/react": "19.2.16",
     "@types/react-dom": "19.2.3",
     "@wagmi/core": "3.6.9",
-    "esbuild": "0.27.7",
+    "esbuild": "0.28.1",
     "happy-dom": "21.0.4",
     "react": "19.0.0",
     "react-dom": "19.0.0",
