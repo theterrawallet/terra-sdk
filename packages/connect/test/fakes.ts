@@ -145,3 +145,15 @@ export function fakeSignClient() {
 }
 
 export const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Waits until cond() holds (polling), instead of a fixed sleep: the WalletConnect connector is a lazy dynamic
+ * import, which can take longer than a fixed delay on a busy CI runner.
+ */
+export async function until(cond: () => boolean, timeoutMs = 5000): Promise<void> {
+  const end = Date.now() + timeoutMs;
+  while (!cond()) {
+    if (Date.now() > end) throw new Error("until(): condition not met in time");
+    await tick(5);
+  }
+}

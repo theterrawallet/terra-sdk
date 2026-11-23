@@ -5,7 +5,7 @@ import { installDom, type InstalledDom } from "../../../scripts/test-dom.js";
 import { createTerraConnect } from "../src/client.js";
 import { base58Encode } from "../src/encoding.js";
 import { TerraError } from "../src/errors.js";
-import { ADDRESS, PAIRING_URI, TOPIC, fakeSignClient, randomProjectId, tick } from "./fakes.js";
+import { ADDRESS, PAIRING_URI, TOPIC, fakeSignClient, randomProjectId, tick, until } from "./fakes.js";
 
 let dom: InstalledDom<Window> | undefined;
 afterEach(async () => {
@@ -36,7 +36,7 @@ describe("WalletConnect fallback (lazy sign client)", () => {
     const uris: string[] = [];
     terra.on("display_uri", (u) => uris.push(u));
     const pending = terra.connect();
-    await tick(40);
+    await until(() => uris.length > 0);
     assert.deepEqual(uris, [PAIRING_URI]);
     assert.equal(terra.getState().pairingUri, PAIRING_URI);
     assert.equal(wc.state.initOpts.metadata.name, "Shop");
@@ -55,7 +55,7 @@ describe("WalletConnect fallback (lazy sign client)", () => {
   it("routes wallet methods through the session with the CAIP-2 chain, switching approved chains locally", async () => {
     const { terra, wc } = setup();
     const pending = terra.connect();
-    await tick(40);
+    await until(() => wc.state.namespaces != null);
     wc.state.approve(wc.session());
     await pending;
     wc.state.respond = () => `0x${"11".repeat(65)}`;
@@ -72,7 +72,7 @@ describe("WalletConnect fallback (lazy sign client)", () => {
   it("answers read-only calls from the network's public RPC, not the wallet", async () => {
     const { terra, wc } = setup();
     const pending = terra.connect();
-    await tick(40);
+    await until(() => wc.state.namespaces != null);
     wc.state.approve(wc.session());
     await pending;
     const realFetch = globalThis.fetch;
@@ -94,7 +94,7 @@ describe("WalletConnect fallback (lazy sign client)", () => {
   it("disconnects when Terra Wallet deletes the session", async () => {
     const { terra, wc } = setup();
     const pending = terra.connect();
-    await tick(40);
+    await until(() => wc.state.namespaces != null);
     wc.state.approve(wc.session());
     await pending;
     wc.client.emit("session_delete", { topic: TOPIC });
@@ -104,7 +104,7 @@ describe("WalletConnect fallback (lazy sign client)", () => {
   it("cancel() rejects at once, and a late approval is closed instead of silently connecting", async () => {
     const { terra, wc } = setup();
     const pending = terra.connect();
-    await tick(40);
+    await until(() => wc.state.namespaces != null);
     terra.cancel();
     await assert.rejects(pending, (e: unknown) => e instanceof TerraError && e.code === "USER_REJECTED");
     wc.state.approve(wc.session());
@@ -116,7 +116,7 @@ describe("WalletConnect fallback (lazy sign client)", () => {
   it("on Android it opens the app through an intent link, and wakes it for each request", async () => {
     const { terra, wc } = setup({ userAgent: ANDROID });
     const pending = terra.connect();
-    await tick(40);
+    await until(() => location.href.startsWith("intent://wc?uri="));
     assert.ok(location.href.startsWith("intent://wc?uri="), location.href);
     wc.state.approve(wc.session());
     await pending;
@@ -128,7 +128,7 @@ describe("WalletConnect fallback (lazy sign client)", () => {
   it("deepLink manual leaves opening the app to the UI", async () => {
     const { terra } = setup({ userAgent: ANDROID, deepLink: "manual" });
     void terra.connect().catch(() => {});
-    await tick(40);
+    await until(() => terra.getState().pairingUri === PAIRING_URI);
     assert.equal(location.href, "https://shop.example/");
     assert.equal(terra.getState().pairingUri, PAIRING_URI);
     terra.cancel();
@@ -150,7 +150,7 @@ describe("WalletConnect metadata and telemetry", () => {
   it("turns WalletConnect's third-party telemetry off unless the app opts in", async () => {
     const { terra, wc } = setup();
     void terra.connect().catch(() => {});
-    await tick(40);
+    await until(() => wc.state.initOpts != null);
     assert.equal(wc.state.initOpts.telemetryEnabled, false);
     terra.cancel();
 
@@ -159,7 +159,7 @@ describe("WalletConnect metadata and telemetry", () => {
     const wc2 = fakeSignClient();
     const opted = createTerraConnect({ discoveryTimeoutMs: 20, autoReconnect: false, walletConnectProjectId: randomProjectId(), walletConnect: { loader: wc2.loader, telemetry: true } });
     void opted.connect().catch(() => {});
-    await tick(40);
+    await until(() => wc2.state.initOpts != null);
     assert.equal(wc2.state.initOpts.telemetryEnabled, true);
     opted.cancel();
   });
@@ -176,7 +176,7 @@ describe("WalletConnect metadata and telemetry", () => {
       walletConnect: { loader: wc.loader },
     });
     void terra.connect().catch(() => {});
-    await tick(40);
+    await until(() => wc.state.initOpts != null);
     assert.equal(wc.state.initOpts.metadata.name, "Good Shop");
     assert.equal(wc.state.initOpts.metadata.description, "Pays fast");
     terra.cancel();
