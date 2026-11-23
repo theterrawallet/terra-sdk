@@ -1,0 +1,66 @@
+{
+  "name": "@terrawallet/server",
+  "version": "0.1.0",
+  "description": "Terra Pay server SDK for Node.js and TypeScript: a typed /v1 client with idempotency, retries and timeouts, plus webhook signature verification.",
+  "keywords": [
+    "terra-wallet",
+    "terra-pay",
+    "wallet",
+    "web3",
+    "crypto-payments"
+  ],
+  "homepage": "https://developers.terrawallet.us/docs",
+  "bugs": {
+    "url": "https://github.com/theterrawallet/terra-sdk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theterrawallet/terra-sdk.git",
+    "directory": "packages/server"
+  },
+  "license": "Apache-2.0",
+  "author": "Terra Wallet (https://terrawallet.us)",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "sbom": "node ../../scripts/sbom.mjs ."
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "esbuild": "0.27.7",
+    "tsx": "4.22.4",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

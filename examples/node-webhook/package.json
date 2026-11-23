@@ -1,0 +1,15 @@
+{
+  "name": "terra-sdk-example-node-webhook",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Example: a dependency-free Node.js receiver for Terra Pay webhooks using @terrawallet/server.",
+  "scripts": {
+    "start": "node server.mjs",
+    "send-test": "node send-test-event.mjs"
+  },
+  "dependencies": {
+    "@terrawallet/server": "workspace:*"
+  },
+  "license": "Apache-2.0"
+}

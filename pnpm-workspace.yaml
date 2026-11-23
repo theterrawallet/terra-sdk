@@ -1,0 +1,18 @@
+packages:
+  - "packages/*"
+  - "examples/*"
+
+# Supply chain:
+# - No dependency install script ever runs (preinstall, install, postinstall). esbuild works without its
+#   postinstall (pnpm installs the platform binary package directly).
+# - strictDepBuilds: a dependency that adds an install script fails the install until it is reviewed and listed
+#   here, so nothing new runs at install time silently.
+onlyBuiltDependencies: []
+ignoredBuiltDependencies:
+  - esbuild
+strictDepBuilds: true
+
+# The Next.js example only: next pins an old postcss with known advisories (build-time CSS processing). No published
+# package depends on postcss.
+overrides:
+  next>postcss: 8.5.32

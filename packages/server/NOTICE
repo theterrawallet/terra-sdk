@@ -1,0 +1,15 @@
+Terra Wallet SDK
+Copyright 2026 Terra Wallet (https://terrawallet.us)
+
+This product includes software developed by Terra Wallet.
+Official source: https://github.com/theterrawallet/terra-sdk
+Developers: https://developers.terrawallet.us
+
+"Terra Wallet", "Terra Pay", "Terra Connect", "Terra Escrow" and the Terra Wallet
+logo are trademarks of Terra Wallet. The Apache License 2.0 grants no permission
+to use them (section 6), except as needed to describe the origin of the software.
+A modified copy must not be presented as the official Terra Wallet SDK.
+
+Third-party software: the optional WalletConnect add-on (terra-walletconnect.*)
+bundles @walletconnect/sign-client and its dependencies, which are distributed
+under their own licenses, not under this one. See each bundle's sbom.cdx.json.

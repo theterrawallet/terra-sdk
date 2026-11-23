@@ -1,0 +1,19 @@
+{
+  "name": "terra-sdk",
+  "private": true,
+  "description": "Official Terra Wallet SDKs and widgets: Terra Connect and Terra Pay.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/*\" build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --filter \"./packages/*\" test",
+    "size": "node scripts/size-check.mjs",
+    "sbom": "pnpm -r --filter \"./packages/*\" sbom",
+    "pack:check": "node scripts/pack-check.mjs",
+    "versions:check": "node scripts/check-versions.mjs"
+  }
+}

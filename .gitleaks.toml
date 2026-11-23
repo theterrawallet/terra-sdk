@@ -1,0 +1,27 @@
+# gitleaks configuration: the default rules, plus Terra's own secret formats.
+title = "terra-sdk"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "terra-secret-key"
+description = "Terra API secret key (tw_test_sk_ / tw_live_sk_)"
+regex = '''tw_(?:test|live)_sk_[A-Za-z0-9_-]{40,}'''
+keywords = ["_sk_"]
+
+[[rules]]
+id = "terra-webhook-secret"
+description = "Terra webhook signing secret (whsec_)"
+regex = '''whsec_[A-Za-z0-9_-]{40,}'''
+keywords = ["whsec_"]
+
+# Exact placeholder and test-fixture values, never real keys: the tests prove that secret-looking strings are
+# refused, so they must contain some. Anything else shaped like a key is still reported.
+[[allowlists]]
+description = "Placeholder and fixture keys used by the examples and tests"
+regexTarget = "match"
+regexes = [
+  '''tw_(?:test|live)_(?:pk|sk)_(?:REPLACEME123456|ABCDEFGH1234|ABCDEFGH12345678|12345678\b|Ab-_9xYzQ1w2E3r4T5y6U7i8O9p0-LkJhGfDsA_zXcVb)''',
+  '''whsec_test_5WbX2kq9N1yRr7Lp''',
+]

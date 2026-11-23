@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Terra Wallet elements: plain HTML</title>
+    <link rel="stylesheet" href="/style.css" />
+    <!--
+      One script tag. In production, load a pinned version from your CDN and copy its integrity value from
+      dist/cdn/manifest.json. The local server (serve.mjs) fills in the hash of your local build.
+      data-project-id enables the QR code / app deep-link fallback (a WalletConnect project id).
+    -->
+    <script
+      src="/cdn/terra-elements.iife.js"
+      integrity="__TERRA_ELEMENTS_SRI__"
+      crossorigin="anonymous"
+      data-app-name="Acme Coffee"
+      data-chains="8453,1,137"
+      data-project-id="__WALLETCONNECT_PROJECT_ID__"
+      defer
+    ></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="bar">
+      <strong>Acme Coffee</strong>
+      <terra-connect-button theme="auto" size="sm"></terra-connect-button>
+    </header>
+    <main>
+      <h1>Single origin beans, 1 kg</h1>
+      <p class="muted">$32.00, paid in USDC or USDT.</p>
+      <!-- payment-intent comes from YOUR server (it calls the Terra API with the secret key). -->
+      <terra-pay-button
+        payment-intent="pi_DEMO1234567890ABCDEFGH"
+        publishable-key="tw_test_pk_REPLACEME123456"
+        theme="auto"
+        accent="#0A5BFF"
+      ></terra-pay-button>
+      <terra-pay-button plan="plan_DEMO1234567890ABCD" publishable-key="tw_test_pk_REPLACEME123456" theme="auto" label="Subscribe monthly"></terra-pay-button>
+      <p id="status" class="muted" role="status"></p>
+    </main>
+  </body>
+</html>

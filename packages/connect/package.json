@@ -1,0 +1,64 @@
+{
+  "name": "@terrawallet/connect",
+  "version": "0.1.0",
+  "description": "Connect any web app to Terra Wallet: EIP-6963 and Solana Wallet Standard discovery, app deep links, and a lazily loaded WalletConnect v2 fallback.",
+  "keywords": [
+    "terra-wallet",
+    "terra-pay",
+    "wallet",
+    "web3",
+    "crypto-payments"
+  ],
+  "homepage": "https://developers.terrawallet.us/docs",
+  "bugs": {
+    "url": "https://github.com/theterrawallet/terra-sdk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theterrawallet/terra-sdk.git",
+    "directory": "packages/connect"
+  },
+  "license": "Apache-2.0",
+  "author": "Terra Wallet (https://terrawallet.us)",
+  "type": "module",
+  "sideEffects": false,
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "size": "node ../../scripts/size-check.mjs",
+    "sbom": "node ../../scripts/sbom.mjs ."
+  },
+  "dependencies": {
+    "@walletconnect/sign-client": "2.23.9"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "esbuild": "0.27.7",
+    "happy-dom": "21.0.4",
+    "tsx": "4.22.4",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

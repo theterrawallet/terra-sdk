@@ -1,0 +1,27 @@
+{
+  "name": "terra-sdk-example-nextjs-store",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Example: a minimal Next.js store using @terrawallet/react (Connect) and @terrawallet/pay-js (Terra Pay checkout).",
+  "scripts": {
+    "dev": "next dev -p 3210",
+    "build": "next build",
+    "start": "next start -p 3210",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@terrawallet/pay-js": "workspace:*",
+    "@terrawallet/react": "workspace:*",
+    "@terrawallet/server": "workspace:*",
+    "next": "15.5.29",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.16",
+    "@types/react-dom": "19.2.3",
+    "typescript": "5.9.3"
+  },
+  "license": "Apache-2.0"
+}

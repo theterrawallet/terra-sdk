@@ -1,0 +1,116 @@
+# Publishes the five @terrawallet packages to npm when a v* tag is pushed.
+#
+# - Runs in the "npm-release" environment: the owner must approve each run, and the environment accepts only v* tags.
+# - npm trusted publishing (OIDC): no npm token exists anywhere. npm exchanges this job's GitHub OIDC token for a
+#   short-lived publish credential, for the packages whose Trusted Publisher names this repo, this workflow file and
+#   this environment. Every version gets a provenance attestation.
+# - Fails unless the tag equals every package.json version. Builds and tests from the tagged commit, then publishes
+#   the checked tarballs in dependency order: connect, server, pay-js, elements, react.
+# - Actions are pinned to full commit SHAs (the tag is in the comment).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm (version from packageManager in package.json)
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      # No registry-url here on purpose: it would write an .npmrc that expects NODE_AUTH_TOKEN. No cache either.
+      - name: Set up Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.22.1"
+          package-manager-cache: false
+
+      - name: Use npm 11.21.1 (trusted publishing needs 11.5.1 or newer)
+        run: |
+          set -euo pipefail
+          npm install --global npm@11.21.1
+          v="$(npm --version)"
+          echo "npm ${v}"
+          node -e 'const [a, b, c] = process.argv[1].split(".").map(Number); if (a < 11 || (a === 11 && (b < 5 || (b === 5 && c < 1)))) { console.error("npm is too old for trusted publishing"); process.exit(1); }' "$v"
+
+      - name: The tag must equal every package version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: node scripts/check-versions.mjs "$TAG"
+
+      - name: Install (frozen lockfile; dependency install scripts never run)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Size gate
+        run: pnpm size
+
+      - name: SBOMs (shipped in each package as dist/sbom.cdx.json)
+        run: pnpm sbom
+
+      - name: Pack and check the tarballs
+        run: node scripts/pack-check.mjs --out artifacts
+
+      # npm does not understand pnpm's workspace: protocol, so the tarballs packed by pnpm (siblings pinned to the
+      # exact version) are what gets published.
+      - name: Publish in dependency order
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          for pkg in connect server pay-js elements react; do
+            name="@terrawallet/${pkg}"
+            tarball="artifacts/terrawallet-${pkg}-${version}.tgz"
+            test -f "$tarball"
+            if [ "$(npm view "${name}@${version}" version 2>/dev/null || true)" = "$version" ]; then
+              echo "${name}@${version} is already on npm: skipping (re-run after a partial publish)"
+              continue
+            fi
+            npm publish "$tarball" --provenance --access public
+          done
+
+      - name: Verify registry signatures and provenance
+        continue-on-error: true
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          dir="$(mktemp -d)"
+          cd "$dir"
+          npm init --yes > /dev/null
+          for attempt in 1 2 3 4 5; do
+            if npm install --ignore-scripts --no-audit --no-fund "@terrawallet/connect@${version}" "@terrawallet/server@${version}" "@terrawallet/pay-js@${version}" "@terrawallet/elements@${version}" "@terrawallet/react@${version}" react@19.0.0; then break; fi
+            sleep 30
+          done
+          npm audit signatures

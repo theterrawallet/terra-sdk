@@ -1,0 +1,87 @@
+{
+  "name": "@terrawallet/react",
+  "version": "0.1.0",
+  "description": "React bindings for Terra Wallet: <TerraProvider>, <ConnectButton/>, <WalletModal/>, hooks, and a wagmi connector.",
+  "keywords": [
+    "terra-wallet",
+    "terra-pay",
+    "wallet",
+    "web3",
+    "crypto-payments"
+  ],
+  "homepage": "https://developers.terrawallet.us/docs",
+  "bugs": {
+    "url": "https://github.com/theterrawallet/terra-sdk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theterrawallet/terra-sdk.git",
+    "directory": "packages/react"
+  },
+  "license": "Apache-2.0",
+  "author": "Terra Wallet (https://terrawallet.us)",
+  "type": "module",
+  "sideEffects": false,
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./wagmi": {
+      "types": "./dist/wagmi.d.ts",
+      "import": "./dist/wagmi.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "sbom": "node ../../scripts/sbom.mjs ."
+  },
+  "dependencies": {
+    "@terrawallet/connect": "workspace:*",
+    "@terrawallet/elements": "workspace:*"
+  },
+  "peerDependencies": {
+    "@wagmi/core": ">=2.17.0 <4",
+    "react": ">=18.2.0",
+    "viem": "2.x"
+  },
+  "peerDependenciesMeta": {
+    "@wagmi/core": {
+      "optional": true
+    },
+    "viem": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.16",
+    "@types/react-dom": "19.2.3",
+    "@wagmi/core": "3.6.9",
+    "esbuild": "0.27.7",
+    "happy-dom": "21.0.4",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "tsx": "4.22.4",
+    "typescript": "5.9.3",
+    "viem": "2.57.16"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
