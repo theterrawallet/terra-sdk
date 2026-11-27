@@ -90,7 +90,8 @@ jobs:
           version="${TAG#v}"
           for pkg in connect server pay-js elements react; do
             name="@terrawallet/${pkg}"
-            tarball="artifacts/terrawallet-${pkg}-${version}.tgz"
+            # Leading ./ so npm reads it as a local file, not a GitHub "user/repo" shorthand.
+            tarball="./artifacts/terrawallet-${pkg}-${version}.tgz"
             test -f "$tarball"
             if [ "$(npm view "${name}@${version}" version 2>/dev/null || true)" = "$version" ]; then
               echo "${name}@${version} is already on npm: skipping (re-run after a partial publish)"
