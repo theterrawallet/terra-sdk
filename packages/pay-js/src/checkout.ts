@@ -1,11 +1,15 @@
 /**
  * TerraPay.open(): hosted checkout on https://pay.terrawallet.us, in a popup window or a sandboxed modal iframe.
  *
- * Mode "auto" (default): a popup (a new tab on phones) on every device. Browser wallet extensions (Terra Wallet
- * included) do not inject into iframes, and the hosted checkout does not allow framing yet (it sends
- * `frame-ancestors 'none'` until per-merchant framing ships), so a top-level checkout window is the one mode that
- * works everywhere today. A blocked popup falls back to the modal, and a checkout that never says "ready" is
- * reported through onError instead of spinning forever.
+ * Mode "auto" (default):
+ * - phones: the sandboxed modal. The checkout lets exactly your origin frame it once its server-side embed check
+ *   says that origin is one of the publishable key's allowed origins (frame-ancestors per merchant), and wallet
+ *   apps open from the frame through their links.
+ * - desktops: a popup, because browser wallet extensions (Terra Wallet included) do not inject into iframes.
+ * The "ready" message is the checkout's confirmation that it loaded and verified this page. A modal that gets no
+ * "ready" within readyTimeoutMs (the frame was refused: this origin is not allowed, or the page is not https)
+ * reports a clear onError and offers to continue in a popup (one tap: a popup needs a user gesture). A blocked
+ * popup falls back to the modal.
  */
 import { CHECKOUT_CSS } from "./styles.js";
 import { ICONS, adoptStyles, h, icon, isPhone } from "./dom.js";
@@ -41,12 +45,14 @@ export interface OpenOptions extends CheckoutTarget {
   onClose?(result: CheckoutResult): void;
   /**
    * How long to wait for the checkout's "ready" message before calling onError (the frame was refused, this page
-   * is not an allowed origin of the publishable key, or the page is not https). Default 20000 ms.
+   * is not an allowed origin of the publishable key, or the page is not https). A modal then offers to continue in
+   * a popup window. Default 20000 ms.
    */
   readyTimeoutMs?: number;
 }
 
 export interface CheckoutHandle {
+  /** The current mode: a modal that fell back to a popup reports "popup" from then on. */
   readonly mode: CheckoutMode;
   /** Resolves with the final result when the checkout closes. */
   readonly closed: Promise<CheckoutResult>;
@@ -83,16 +89,19 @@ export function openCheckout(opts: OpenOptions): CheckoutHandle {
   const make = (mode: CheckoutMode) => buildCheckoutUrl(opts, { publishableKey: opts.publishableKey, mode, sid, parentOrigin: location.origin, theme });
   make("modal"); // validates the target before any UI appears
 
-  let mode: CheckoutMode = wanted === "auto" ? "popup" : wanted;
+  let mode: CheckoutMode = wanted === "auto" ? (isPhone() ? "modal" : "popup") : wanted;
   let popup: Window | null = null;
-  if (mode === "popup") {
+  const openWindow = (): Window | null => {
     const w = 460;
     const hgt = 760;
     const left = Math.max(0, Math.round((window.screenX ?? 0) + ((window.outerWidth ?? w) - w) / 2));
     const top = Math.max(0, Math.round((window.screenY ?? 0) + ((window.outerHeight ?? hgt) - hgt) / 2));
     // The window keeps `opener` (the checkout posts its messages there, to this exact origin only). Its name is
     // random and unrelated to the session id: a window name stays readable by every later page in that window.
-    popup = window.open(make("popup"), `terra_pay_${newSessionId().slice(0, 12)}`, `popup=yes,width=${w},height=${hgt},left=${left},top=${top}`);
+    return window.open(make("popup"), `terra_pay_${newSessionId().slice(0, 12)}`, `popup=yes,width=${w},height=${hgt},left=${left},top=${top}`);
+  };
+  if (mode === "popup") {
+    popup = openWindow();
     if (!popup) {
       if (wanted === "popup") throw new TerraPayError("POPUP_BLOCKED");
       mode = "modal";
@@ -114,12 +123,13 @@ export function openCheckout(opts: OpenOptions): CheckoutHandle {
   const closeBtn = h("button", { class: "x", type: "button", "aria-label": "Close checkout" }, icon(ICONS.close, 20));
   let iframe: HTMLIFrameElement | null = null;
   let loading: HTMLElement | null = null;
+  const scrim = h("div", { class: "scrim" });
 
-  if (mode === "modal") {
+  function modalPanel(): HTMLElement {
     loading = h("div", { class: "loading", role: "status" }, h("span", { class: "spin" }), "Loading secure checkout");
     iframe = h("iframe", { title: "Terra Pay checkout", sandbox: IFRAME_SANDBOX, allow: "clipboard-write", referrerpolicy: "strict-origin-when-cross-origin" });
     iframe.src = make("modal");
-    const panel = h(
+    return h(
       "div",
       { class: "panel" },
       h(
@@ -131,24 +141,24 @@ export function openCheckout(opts: OpenOptions): CheckoutHandle {
       ),
       h("div", { class: "frame" }, loading, iframe),
     );
-    wrap.append(h("div", { class: "scrim" }), panel);
-  } else {
+  }
+
+  function popupCard(): HTMLElement {
     const show = h("button", { class: "btn primary", type: "button" }, icon(ICONS.external, 18), "Show window");
     const cancel = h("button", { class: "btn secondary", type: "button" }, "Cancel payment");
     show.addEventListener("click", () => popup?.focus());
     cancel.addEventListener("click", () => finish({ status: "canceled" }, true));
-    wrap.append(
-      h("div", { class: "scrim" }),
-      h(
-        "div",
-        { class: "card", role: "document" },
-        h("span", { class: "lock" }, icon(ICONS.lock, 18)),
-        h("h2", { id: "t" }, "Finish paying in the Terra Pay window"),
-        h("p", { id: "d" }, "Secure checkout opened on pay.terrawallet.us. Your payment continues there."),
-        h("div", { class: "row" }, cancel, show),
-      ),
+    return h(
+      "div",
+      { class: "card", role: "document" },
+      h("span", { class: "lock" }, icon(ICONS.lock, 18)),
+      h("h2", { id: "t" }, "Finish paying in the Terra Pay window"),
+      h("p", { id: "d" }, "Secure checkout opened on pay.terrawallet.us. Your payment continues there."),
+      h("div", { class: "row" }, cancel, show),
     );
   }
+
+  wrap.append(scrim, mode === "modal" ? modalPanel() : popupCard());
   dialog.append(wrap);
   root.append(dialog);
   document.body.append(host);
@@ -197,22 +207,60 @@ export function openCheckout(opts: OpenOptions): CheckoutHandle {
   };
   window.addEventListener("message", onMessage);
 
-  const poll = mode === "popup" ? setInterval(() => popup?.closed && finish(outcome ?? { status: "canceled" }, false), 400) : undefined;
+  let poll: ReturnType<typeof setInterval> | undefined;
+  const watchPopup = () => {
+    poll = setInterval(() => popup?.closed && finish(outcome ?? { status: "canceled" }, false), 400);
+  };
+  if (mode === "popup") watchPopup();
 
-  // No "ready" in time: say why instead of leaving the shopper and the merchant guessing.
+  // No "ready" in time: say why instead of leaving the shopper and the merchant guessing. A modal then offers the
+  // popup (the shopper's tap is the user gesture a popup needs; opening one from a timer would be blocked).
   let ready = false;
   const readyMs = typeof opts.readyTimeoutMs === "number" && Number.isFinite(opts.readyTimeoutMs) && opts.readyTimeoutMs > 0 ? opts.readyTimeoutMs : DEFAULT_READY_TIMEOUT_MS;
-  const watchdog = setTimeout(() => {
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+  const arm = () => {
+    clearTimeout(watchdog);
+    watchdog = setTimeout(notReady, readyMs);
+  };
+  function notReady() {
     if (finished || ready) return;
-    const why =
-      location.protocol !== "https:"
-        ? "The checkout sends its messages only to https pages."
-        : mode === "modal"
-          ? "The checkout could not load in a frame on this page, or this site is not an allowed origin of the publishable key."
-          : "Check that this site is an allowed origin of the publishable key (dashboard, project settings).";
-    loading?.replaceChildren("The secure checkout did not load here. Close this window and try again.");
+    const https = location.protocol === "https:";
+    if (mode === "modal") {
+      const why = https
+        ? "The checkout could not load in a frame on this page: check that this site is an allowed origin of the publishable key (dashboard, project settings)."
+        : "The checkout sends its messages only to https pages.";
+      opts.onError?.(new TerraPayError("CHECKOUT_ERROR", `The checkout did not connect to this page. ${why} The shopper can continue in a new window.`));
+      const go = h("button", { class: "btn primary", type: "button" }, icon(ICONS.external, 18), "Continue in a new window");
+      go.addEventListener("click", () => toPopup(go));
+      loading?.replaceChildren(h("p", {}, "The secure checkout could not open here."), go);
+      go.focus();
+      return;
+    }
+    const why = https ? "Check that this site is an allowed origin of the publishable key (dashboard, project settings)." : "The checkout sends its messages only to https pages.";
     opts.onError?.(new TerraPayError("CHECKOUT_ERROR", `The checkout did not connect to this page. ${why}`));
-  }, readyMs);
+  }
+  arm();
+
+  /** The modal did not load: continue the same session (same sid) in a popup, from the shopper's tap. */
+  function toPopup(button: HTMLElement) {
+    if (finished || mode !== "modal") return;
+    const w = openWindow();
+    if (!w) {
+      opts.onError?.(new TerraPayError("POPUP_BLOCKED"));
+      button.focus();
+      return;
+    }
+    popup = w;
+    mode = "popup";
+    iframe?.remove();
+    iframe = null;
+    loading = null;
+    const card = popupCard();
+    wrap.replaceChildren(scrim, card);
+    (card.querySelector(".primary") as HTMLElement | null)?.focus();
+    watchPopup();
+    arm();
+  }
 
   function resultOf(m: CheckoutMessage, status: CheckoutStatus): CheckoutResult {
     const r: CheckoutResult = { status };
@@ -274,7 +322,9 @@ export function openCheckout(opts: OpenOptions): CheckoutHandle {
   }
 
   const handle_: CheckoutHandle = {
-    mode,
+    get mode() {
+      return mode;
+    },
     closed,
     close: () => finish(outcome ?? { status: "canceled" }, true),
     focus: () => (popup && !popup.closed ? popup.focus() : closeBtn.focus()),

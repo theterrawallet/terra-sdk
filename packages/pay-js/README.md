@@ -21,17 +21,21 @@ Script tag: `dist/cdn/terra-pay.iife.js` (SRI hash in `dist/cdn/manifest.json`) 
 
 ## Modes
 
-- `auto` (default): a popup on every device (a new tab on phones). Browser wallet extensions (Terra Wallet
-  included) do not inject into iframes, and the hosted checkout does not allow framing yet (it sends
-  `frame-ancestors 'none'` until per-merchant framing ships). A blocked popup falls back to the modal.
+- `auto` (default): the modal on phones, a popup on desktops (browser wallet extensions, Terra Wallet included, do
+  not inject into iframes, so a desktop checkout needs its own window). A blocked popup falls back to the modal.
 - `modal`: `<iframe sandbox="allow-scripts allow-same-origin allow-popups allow-forms">` inside a closed shadow root
-  and a native `<dialog>`, with a fixed "Secure checkout, pay.terrawallet.us" header. It loads only once the
-  checkout allows framing for your origin.
-- `popup`: a centred window, with an overlay on your page to bring it back or cancel.
+  and a native `<dialog>`, with a fixed "Secure checkout, pay.terrawallet.us" header. The checkout lets a page frame
+  it only after a server-side check: the publishable key must belong to the checkout's organization and your exact
+  https origin must be on its project's allowed origins (dashboard, project settings). Then it sends
+  `frame-ancestors <your origin>`; for anyone else it stays `frame-ancestors 'none'`. Inside the frame the checkout
+  shows "Paying on <your site>" and accepts pay actions only from real taps or clicks.
+- `popup`: a centred window (a new tab on phones), with an overlay on your page to bring it back or cancel.
 
 If the checkout does not report `ready` within `readyTimeoutMs` (default 20 s), `onError` receives a
-`CHECKOUT_ERROR` that says why: the frame was refused, your page is not https, or your origin is not on the
-publishable key's allowed origins (dashboard, project settings). Messages go only to https pages.
+`CHECKOUT_ERROR` that says why: the frame was refused (your origin is not an allowed origin of the publishable key)
+or your page is not https. A modal then offers the shopper "Continue in a new window", which opens the same session
+in a popup (from the shopper's tap, because browsers block popups opened from a timer); `handle.mode` reports
+`popup` from then on. Messages go only to https pages, and localhost origins work only with test-mode keys.
 
 Your own page must not send `Cross-Origin-Opener-Policy: same-origin` (use `same-origin-allow-popups`), otherwise
 the browser cuts the link to the popup and the SDK sees an immediate cancel.
@@ -54,9 +58,11 @@ the browser cuts the link to the popup and the SDK sees an immediate cancel.
 ## Checkout page contract (what pay.terrawallet.us implements)
 
 The checkout page receives `?embed=modal|popup&pk=<publishable key>&sid=<session id>&origin=<merchant origin>`
-(`theme=light|dark` optional). It must check `origin` against the project's allowed origins (and use
-`frame-ancestors` for the modal) before posting, then post to `window.parent` (modal) or `window.opener` (popup)
-with `targetOrigin` set to that origin:
+(`theme=light|dark` optional), each parameter exactly once. For `embed=modal` the checkout's Worker asks the API
+(`GET /api/v1/checkout/:id/embed?origin=...`, the key in the Authorization header) and sends
+`frame-ancestors <origin>` only when it says yes (`frame-ancestors 'none'` and `X-Frame-Options: DENY` otherwise).
+The page checks `origin` the same way before posting, then posts to `window.parent` (modal) or `window.opener`
+(popup) with `targetOrigin` set to that origin:
 
 ```js
 { terraPay: 1, sid, type: "ready" }
