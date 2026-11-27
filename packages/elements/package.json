@@ -60,7 +60,7 @@
     "@types/react": "19.2.16",
     "@types/react-dom": "19.2.3",
     "@walletconnect/sign-client": "2.23.9",
-    "esbuild": "0.27.7",
+    "esbuild": "0.28.2",
     "happy-dom": "21.0.4",
     "qrcode.react": "4.2.0",
     "react": "19.0.0",
