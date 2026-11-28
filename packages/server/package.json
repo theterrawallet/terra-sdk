@@ -52,7 +52,7 @@
   },
   "devDependencies": {
     "@types/node": "22.19.19",
-    "esbuild": "0.27.7",
+    "esbuild": "0.28.2",
     "tsx": "4.22.4",
     "typescript": "5.9.3"
   },
